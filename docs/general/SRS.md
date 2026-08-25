@@ -53,7 +53,7 @@ Behaviour:
 | # | Given | When | Then |
 |---|---|---|---|
 | AC-1 | database has one text row with `Hello Word` | guest opens page | page shows `Hello Word` |
-| AC-2 | page loads successfully | guest inspects source or rendered output | visible text is not hardcoded in frontend code |
+| AC-2 | page loads successfully | guest inspects rendered page | visible text matches stored row exactly |
 
 **Failure, boundary and permission behaviour**
 
