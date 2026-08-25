@@ -2,22 +2,19 @@ package main
 
 import (
 	"context"
-	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 )
-
-//go:embed ../../migrations/*.up.sql
-var migrationFiles embed.FS
 
 type app struct {
 	db *pgx.Conn
