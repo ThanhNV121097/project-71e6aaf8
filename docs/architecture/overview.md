@@ -1,70 +1,82 @@
-# Architecture Overview — hello-word-18
+# Architecture Overview
 
-## Scope
-Fullstack proof slice: one Next.js page reads one stored `Hello Word` row through Go API backed by PostgreSQL. No auth, no editing, no extra screens.
+## Purpose
+
+hello-word-18 is a minimal fullstack proof: PostgreSQL stores one display row, Go serves it, and Next.js renders one centered page. Scope stays deliberately small; no auth, editing, admin UI, animation, or extra screens.
 
 ## Stack
+
 | Part | Choice | Reason | Rejected alternative |
 |---|---|---|---|
-| Frontend | Next.js 15 App Router, TypeScript, Tailwind v3 | Matches pipeline scaffold and UI need | Static HTML rejected because frontend must call API |
-| Backend | Go 1.22 HTTP server | Small standard-library server plus PostgreSQL driver | Node API rejected to keep repo default backend stack |
-| Database | PostgreSQL 16 | Required source of truth for message row | Hardcoded frontend text rejected by SRS |
-| Runtime | `docker compose up` from repo root | One command boots DB, API, UI | Separate service commands rejected for slower verification |
+| Frontend | Next.js 15 App Router, TypeScript, Tailwind v3 | Matches project default and deploy image; server components by default | Plain HTML would not exercise frontend build pipeline |
+| Backend | Go 1.22 HTTP service | Small binary, stdlib server, matches container convention | Node API would add a second runtime style |
+| Database | PostgreSQL 16 | Required by SRS: text row must not be hardcoded in frontend | Frontend constant violates GENERAL-001 |
+| Styling | CSS tokens in `app/globals.css` plus Tailwind base | Enforces approved design values and CI token rules | Component-local hardcoded values cause review churn |
 
-## Folder layout
+## Repository layout
+
 ```text
-code/backend/                 Go module, one main package under cmd/api
-code/backend/migrations/      SQL migrations embedded and applied on boot
-code/frontend/                Next.js App Router app
-docs/architecture/            Architecture, ERD, service contracts
+docs/architecture/overview.md
+docs/architecture/erd.md
+docs/architecture/services.md
+code/backend/
+  cmd/api/main.go
+  internal/migrations/migrations.go
+  migrations/*.sql
+code/frontend/
+  app/layout.tsx
+  app/page.tsx
+  app/globals.css
 ```
 
-## Backend contract
-- Reads `DATABASE_URL`, `PORT`, then `APP_PORT`, then defaults to `8080`.
-- Applies pending migrations before listening.
-- `/healthz` returns 200 only after migrations pass and `SELECT 1` succeeds.
-- Feature endpoints live under `/v1/...`; no `/api` prefix because deploy proxy strips it.
-- Errors use shared JSON envelope from `docs/architecture/services.md`.
+`docker-compose.yml` and `.github/workflows/ci.yml` are pre-committed pipeline files. Do not edit them unless pipeline owner changes contract.
 
-## Frontend contract
-- `app/page.tsx` is composition root only. Later story adds one import and one child.
-- Server Components stay default. Client components need first line `"use client"` only if they use browser APIs or event handlers.
-- Shared tokens live in `app/globals.css`; story CSS modules must use tokens, no hardcoded visual values.
-- `NEXT_PUBLIC_API_URL` is browser-reachable API origin.
+## Backend boundaries
+
+`cmd/api` owns process startup, environment parsing, migration execution, route registration, and health checks. Migrations are embedded from `internal/migrations` so boot works in containers without loose SQL files. `/healthz` returns 200 only after migrations pass and `SELECT 1` succeeds.
+
+## Frontend boundaries
+
+`app/page.tsx` is composition root only. Story components mount there later by one import and one element. Server components stay default; any future component using browser APIs must begin with literal first line `"use client"`.
 
 ## Data flow
-1. Browser loads Next.js page.
-2. Page component fetches backend endpoint via `NEXT_PUBLIC_API_URL`.
-3. Go API reads single `display_texts` row from PostgreSQL.
-4. Frontend renders returned text centered on white background.
+
+Browser loads Next.js page, frontend calls backend through `NEXT_PUBLIC_API_URL`, backend reads PostgreSQL, and response contains stored display text. Database is source of truth for visible message.
 
 ## Environment variables
-| Service | Key | Required | Notes |
-|---|---|---|---|
-| backend | `DATABASE_URL` | yes | Full PostgreSQL URL injected by runtime/compose |
-| backend | `PORT` | yes in runtime | Listen port, defaults to 8080 locally |
-| backend | `APP_PORT` | fallback | Legacy fallback only |
-| frontend | `NEXT_PUBLIC_API_URL` | yes | Browser-visible backend origin |
-| root compose | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | local only | Compose local DB credentials |
+
+| Service | Key | Purpose |
+|---|---|---|
+| backend | `DATABASE_URL` | PostgreSQL connection string injected by runtime |
+| backend | `PORT` | HTTP listen port |
+| backend | `APP_PORT` | Fallback listen port if `PORT` absent |
+| frontend | `NEXT_PUBLIC_API_URL` | Browser-visible backend base URL |
+| root compose | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Local PostgreSQL setup |
+| root compose | `BACKEND_PORT`, `FRONTEND_PORT` | Optional host port overrides |
+
+Every service has `.env.example`; no secrets committed.
 
 ## Naming conventions
-- Go packages use short lowercase names; one executable package at `cmd/api`.
-- Migrations use `YYYYMMDDHHMMSS_name.up.sql` and matching `.down.sql`.
-- React components use `export default function ComponentName()`.
-- Story components live in `code/frontend/components/` with PascalCase filenames.
+
+Go packages use short lowercase names. HTTP JSON fields use lower camel case. SQL tables use snake_case plural nouns. React components use PascalCase default function exports. CSS tokens use semantic `--color-*`, `--space-*`, `--text-*`, `--radius-*`, `--shadow-*`, `--duration-*` names.
+
+## Failure handling
+
+Backend returns shared JSON error envelope from services contract. Startup fails fast if `DATABASE_URL` missing or migrations fail. Health check includes database ping so broken storage never reports healthy.
 
 ## Run and verify
+
 ```bash
 cp .env.example .env
-cp code/backend/.env.example code/backend/.env
-cp code/frontend/.env.example code/frontend/.env.local
 docker compose --profile local up --build
 ```
-CI gate: `go build ./...`, `go vet ./...`, `go test ./...`, `npm ci`, `npm run lint`, `npm run build`, `npm test --if-present`, CSS token checks.
+
+CI runs Go build/vet/test, frontend install/lint/build/test, and CSS token checks from `.github/workflows/ci.yml`.
 
 ## Risks
+
 | Risk | Mitigation |
 |---|---|
-| Empty database on runtime start | Backend self-migrates before health becomes green |
-| Missing display row | Seed row in initial migration; service contract returns `not_found` if absent |
-| CSS drift from design | Tokens defined once in `globals.css` and checked by CI |
+| Empty DB on first boot | Backend self-applies migrations before serving |
+| Frontend hardcodes visible text | Service contract requires `/v1/greeting` response as data source |
+| Token drift | `globals.css` mirrors `design/design-system.md` tokens and CI checks usage |
