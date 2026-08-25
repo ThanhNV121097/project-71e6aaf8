@@ -81,7 +81,6 @@ Behaviour:
 1. Guest loads page.
 2. System centers text horizontally and vertically.
 3. System uses white background and black text only.
-4. System shows no animation or extra content.
 
 **Acceptance criteria** — each maps one-to-one onto a test case in `docs/general/test-cases/backend-supplied-page-shell.md`.
 
