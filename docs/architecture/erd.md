@@ -1,25 +1,30 @@
-# ERD — hello-word-18
+# ERD
 
 ## Tables
 
-### `display_texts`
-| Column | Type | Constraints | Purpose |
-|---|---|---|---|
-| `id` | `smallint` | primary key, `id = 1` | Singleton row identity |
-| `body` | `text` | not null, length 1..500 | Text displayed on page |
-| `created_at` | `timestamptz` | not null, default `now()` | Audit creation time |
-| `updated_at` | `timestamptz` | not null, default `now()` | Audit update time |
+### `greetings`
+
+Stores the single display text row required by GENERAL-001.
+
+| Column | Type | Null | Default | Notes |
+|---|---:|---:|---|---|
+| `id` | `integer` | no | none | Primary key; fixed row id `1` |
+| `message` | `text` | no | none | Exact visible text, initially `Hello Word` |
+| `created_at` | `timestamptz` | no | `now()` | Insert timestamp |
+| `updated_at` | `timestamptz` | no | `now()` | Last update timestamp |
 
 ## Relationships
-None. Project needs one singleton content row only.
 
-## Seed data
-Initial migration inserts exactly one row:
-
-| id | body |
-|---|---|
-| 1 | `Hello Word` |
+None. Project has one table and one required row.
 
 ## Constraints
-- `display_texts_singleton`: `id = 1` prevents extra content rows.
-- `display_texts_body_not_blank`: `length(trim(body)) > 0` prevents blank display.
+
+| Name | Columns | Rule |
+|---|---|---|
+| `greetings_pkey` | `id` | Primary key |
+| `greetings_singleton` | `id` | `CHECK (id = 1)` keeps one logical row |
+| `greetings_message_not_blank` | `message` | `CHECK (length(message) > 0)` prevents empty visible message |
+
+## Seed data
+
+Migration inserts row `(1, 'Hello Word')` with `ON CONFLICT DO NOTHING`, so repeated boots preserve existing value.
