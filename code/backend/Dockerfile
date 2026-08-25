@@ -49,6 +49,7 @@ RUN apk add --no-cache ca-certificates tzdata wget
 WORKDIR /app
 
 COPY --from=builder /bin/server /app/server
+COPY migrations /app/migrations
 
 ENV PORT=8080
 
