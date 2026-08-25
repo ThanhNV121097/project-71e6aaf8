@@ -1,3 +1,7 @@
-export default function Home() {
-  return <main>{/* Story components mount here. */}</main>;
+export default function Page() {
+  return (
+    <main className="app-shell">
+      {/* Story components mount here. */}
+    </main>
+  );
 }
