@@ -63,7 +63,7 @@ func migrate(ctx context.Context, db *pgx.Conn) error {
 		return err
 	}
 
-	entries, err := migrationFiles.ReadDir("../../migrations")
+	entries, err := os.ReadDir("migrations")
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func migrate(ctx context.Context, db *pgx.Conn) error {
 		if exists {
 			continue
 		}
-		sqlBytes, err := migrationFiles.ReadFile("../../migrations/" + name)
+		sqlBytes, err := os.ReadFile(filepath.Join("migrations", name))
 		if err != nil {
 			return err
 		}
