@@ -1,51 +1,59 @@
-# Services — hello-word-18
+# Service Contracts
 
-## Shared rules
-- Paths omit `/api`; deploy proxy strips that prefix before backend sees request.
-- Responses are JSON.
-- Backend logs internal errors and returns generic client-safe messages.
+Base paths omit `/api`; deploy proxy strips that prefix before backend receives request.
 
 ## Error envelope
+
+All non-2xx responses use:
+
 ```json
 {
   "error": {
-    "code": "not_found",
-    "message": "Display text not found"
+    "code": "string",
+    "message": "string"
   }
 }
 ```
 
-| Code | HTTP | Meaning |
-|---|---:|---|
-| `not_found` | 404 | Required singleton row is missing |
-| `internal` | 500 | Unexpected backend or database failure |
+`code` is stable for clients. `message` is safe for display or logs and contains no secrets.
 
 ## Endpoints
 
-### Health
-`GET /healthz`
+### `GET /healthz`
 
-Request: none.
+Checks process, completed migrations, and database `SELECT 1`.
+
+Request body: none.
 
 Success `200 text/plain`:
+
 ```text
 ok
 ```
 
-Failure: non-200 or connection failure. Health is green only after migrations and database `SELECT 1` succeed.
+Failure: service should return `503` only if running but database check fails. Startup migration failure exits process instead of serving.
 
-### Read display text
-`GET /v1/display-text`
+### `GET /v1/greeting`
 
-Request: none.
+Returns stored page text.
+
+Request body: none.
 
 Success `200 application/json`:
+
 ```json
 {
-  "text": "Hello Word"
+  "message": "Hello Word"
 }
 ```
 
 Errors:
-- `404 not_found` when singleton row `id = 1` is absent.
-- `500 internal` for query or database failure.
+
+| Status | Code | Meaning |
+|---:|---|---|
+| 404 | `greeting_not_found` | Required singleton row is absent |
+| 500 | `internal_error` | Database or unexpected server failure |
+
+## Compatibility
+
+Frontend reads `message` exactly. Backend may add fields later, but must not rename or remove `message` without SRS change.
